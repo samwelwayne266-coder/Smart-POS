@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAN7fPizBFDc4Jb1Nlj4Z6Q10MiABc4or0",
@@ -14,64 +13,61 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebas
   };
 
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// State
-let cart = [];
+// Debug helper
+const log = (msg) => { document.getElementById('debug-log').innerText = msg; };
 
-// DOM Elements
-const authDiv = document.getElementById('auth-container');
-const appDiv = document.getElementById('app-container');
-const loginBtn = document.getElementById('login-btn');
-const logoutBtn = document.getElementById('logout-btn');
-const checkoutBtn = document.getElementById('checkout-btn');
+// Auth handlers
+document.getElementById('login-btn').onclick = () => {
+    log("Opening popup...");
+    signInWithPopup(auth, provider).catch(err => {
+        log("ERROR: " + err.message);
+        console.error(err);
+    });
+};
 
-// Auth Logic
-loginBtn.onclick = () => signInWithPopup(auth, provider);
-logoutBtn.onclick = () => signOut(auth);
+document.getElementById('logout-btn').onclick = () => signOut(auth);
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        authDiv.classList.add('hidden');
-        appDiv.classList.remove('hidden');
+        document.getElementById('auth-container').classList.add('hidden');
+        document.getElementById('app-container').classList.remove('hidden');
+        document.getElementById('user-display').innerText = `Staff: ${user.displayName}`;
+        document.getElementById('sys-status').innerText = "Online & Authenticated";
     } else {
-        authDiv.classList.remove('hidden');
-        appDiv.classList.add('hidden');
+        document.getElementById('auth-container').classList.remove('hidden');
+        document.getElementById('app-container').classList.add('hidden');
+        document.getElementById('sys-status').innerText = "Waiting for Login";
     }
 });
 
 // POS Logic
+let cart = [];
 window.addToCart = (name, price) => {
-    cart.push({ name, price });
-    renderCart();
+    cart.push({name, price});
+    render();
 };
 
-function renderCart() {
+function render() {
     const list = document.getElementById('cart-items');
-    const totalEl = document.getElementById('total-price');
-    list.innerHTML = cart.map(item => `<li>${item.name} - $${item.price.toFixed(2)}</li>`).join('');
-    const total = cart.reduce((sum, item) => sum + item.price, 0);
-    totalEl.innerText = total.toFixed(2);
+    list.innerHTML = cart.map(i => `<div>${i.name} - $${i.price.toFixed(2)}</div>`).join('');
+    const total = cart.reduce((s, i) => s + i.price, 0);
+    document.getElementById('total-val').innerText = total.toFixed(2);
 }
 
-// Save to Firebase
-checkoutBtn.onclick = async () => {
-    if (cart.length === 0) return alert("Cart is empty");
-    
+document.getElementById('checkout-btn').onclick = async () => {
+    if(cart.length === 0) return;
     try {
         await addDoc(collection(db, "sales"), {
             items: cart,
-            total: cart.reduce((sum, item) => sum + item.price, 0),
-            timestamp: new Date(),
-            userId: auth.currentUser.uid
+            total: cart.reduce((s, i) => s + i.price, 0),
+            time: new Date()
         });
-        alert("Sale Sync'd to Cloud!");
+        alert("Success!");
         cart = [];
-        renderCart();
-    } catch (e) {
-        console.error("Error adding document: ", e);
-    }
+        render();
+    } catch(e) { log("DB Error: " + e.message); }
 };
