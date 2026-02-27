@@ -1,7 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// REPLACE WITH YOUR CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyAN7fPizBFDc4Jb1Nlj4Z6Q10MiABc4or0",
     authDomain: "cloud-pos-b284f.firebaseapp.com",
@@ -17,57 +18,72 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// Debug helper
-const log = (msg) => { document.getElementById('debug-log').innerText = msg; };
+// UI Elements
+const authDiv = document.getElementById('auth-container');
+const appDiv = document.getElementById('app-container');
+const salesFeed = document.getElementById('sales-feed');
 
-// Auth handlers
-document.getElementById('login-btn').onclick = () => {
-    log("Opening popup...");
-    signInWithPopup(auth, provider).catch(err => {
-        log("ERROR: " + err.message);
-        console.error(err);
-    });
-};
-
+// --- AUTH LOGIC ---
+document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
 document.getElementById('logout-btn').onclick = () => signOut(auth);
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        document.getElementById('auth-container').classList.add('hidden');
-        document.getElementById('app-container').classList.remove('hidden');
+        authDiv.classList.add('hidden');
+        appDiv.classList.remove('hidden');
         document.getElementById('user-display').innerText = `Staff: ${user.displayName}`;
-        document.getElementById('sys-status').innerText = "Online & Authenticated";
+        document.getElementById('sys-status').innerText = "Online";
+        loadSalesHistory();
     } else {
-        document.getElementById('auth-container').classList.remove('hidden');
-        document.getElementById('app-container').classList.add('hidden');
-        document.getElementById('sys-status').innerText = "Waiting for Login";
+        authDiv.classList.remove('hidden');
+        appDiv.classList.add('hidden');
+        document.getElementById('sys-status').innerText = "Logged Out";
     }
 });
 
-// POS Logic
+// --- POS LOGIC ---
 let cart = [];
 window.addToCart = (name, price) => {
     cart.push({name, price});
-    render();
+    renderCart();
 };
 
-function render() {
+function renderCart() {
     const list = document.getElementById('cart-items');
-    list.innerHTML = cart.map(i => `<div>${i.name} - $${i.price.toFixed(2)}</div>`).join('');
+    list.innerHTML = cart.map(i => `
+        <div class="cart-item">
+            <span>${i.name}</span>
+            <span>$${i.price.toFixed(2)}</span>
+        </div>
+    `).join('');
     const total = cart.reduce((s, i) => s + i.price, 0);
     document.getElementById('total-val').innerText = total.toFixed(2);
 }
 
 document.getElementById('checkout-btn').onclick = async () => {
-    if(cart.length === 0) return;
+    if(cart.length === 0) return alert("Cart is empty!");
+    
     try {
         await addDoc(collection(db, "sales"), {
-            items: cart,
+            staff: auth.currentUser.displayName,
             total: cart.reduce((s, i) => s + i.price, 0),
-            time: new Date()
+            timestamp: serverTimestamp()
         });
-        alert("Success!");
+        alert("Sale Completed!");
         cart = [];
-        render();
-    } catch(e) { log("DB Error: " + e.message); }
+        renderCart();
+    } catch(e) {
+        alert("Database Error: " + e.message);
+    }
 };
+
+// --- DATA LOGIC ---
+function loadSalesHistory() {
+    const q = query(collection(db, "sales"), orderBy("timestamp", "desc"), limit(5));
+    onSnapshot(q, (snapshot) => {
+        salesFeed.innerHTML = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return `<div class="history-item">Order: $${data.total?.toFixed(2)} by ${data.staff}</div>`;
+        }).join('');
+    });
+}
