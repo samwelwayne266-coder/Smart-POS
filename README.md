@@ -1,6 +1,6 @@
 # 🛡️ Wayne Core | Smart POS System
 ## 🚀 Project Overview
-Wayne Core is a futuristic, high-performance retail suite. It uses a NoSQL backend to ensure that your inventory and sales data are always in sync.
+Smart POS is a futuristic, high-performance retail suite. It uses a NoSQL backend to ensure that your inventory and sales data are always in sync.
 
 ## ✨ Elite Features
 ⚡ Quantum Pulse Scanner: Optimized camera logic with a 1.5s cooldown to eliminate duplicate scans.
@@ -24,9 +24,6 @@ Wayne Core is a futuristic, high-performance retail suite. It uses a NoSQL backe
 
 ** Stock Alerts **: Displays Red Alert styling when qty drops below 10.
 
-## ⚙️ Security Protocols
-> [!IMPORTANT]
-> Ensure your database rules are set to auth != null to prevent unauthorized data leaks.
-
 ## 📜 Operational License
-"This software is provided for Public Use under the MIT License. Wayne Core and the Wayne Enterprises branding are for thematic purposes only."
+> [!IMPORTANT]
+> This software is provided for Public Use under the MIT License. Wayne Core and the Wayne Enterprises branding are for thematic purposes only.
