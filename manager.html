@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wayne Core | Inventory Manager</title>
+    <title>Inventory Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -134,12 +134,10 @@
             const qty = parseInt(document.getElementById('p-qty').value);
             const code = document.getElementById('p-code').value;
 
-            if (!name || isNaN(price) || isNaN(qty) || !code) return alert("Missing Data");
 
             // Using push() to create a unique entry, or use code as key
             const newProduct = { name, price, qty, code };
             db.ref('inventory').push(newProduct).then(() => {
-                alert("Core Updated");
                 // Clear fields
                 ['p-name', 'p-price', 'p-qty', 'p-code'].forEach(id => document.getElementById(id).value = '');
             });
@@ -179,4 +177,5 @@
     </script>
 </body>
 </html>
+
 
