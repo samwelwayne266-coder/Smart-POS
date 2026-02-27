@@ -21,6 +21,8 @@
         .scroll-area { max-height: 450px; overflow-y: auto; }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-thumb { background: #312e81; border-radius: 10px; }
+        .qty-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; transition: 0.2s; font-size: 14px; }
+        .qty-btn:hover { background: var(--accent); color: white; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -28,7 +30,7 @@
     <div id="auth-container" class="fixed inset-0 z-[200] bg-slate-950 flex items-center justify-center p-6">
         <div class="glass-panel p-10 rounded-[2.5rem] max-w-sm w-full text-center border border-indigo-500/30 shadow-2xl">
             <h2 class="text-2xl font-black italic uppercase text-white mb-2">Wayne <span class="text-indigo-500">Core</span></h2>
-            <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-8">Terminal Restricted</p>
+            <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-8">Access Terminal</p>
             <button id="login-btn" class="w-full bg-indigo-600 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest">Login with Google</button>
         </div>
     </div>
@@ -52,15 +54,17 @@
                     </div>
                     <div class="glass-panel p-6 rounded-[2rem]">
                         <input type="text" id="catalogSearch" oninput="filterCatalog()" placeholder="SEARCH INVENTORY..." class="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-[10px] font-mono text-indigo-400 outline-none mb-4">
-                        <div id="catalog-list" class="scroll-area space-y-2">
-                            </div>
+                        <div id="catalog-list" class="scroll-area space-y-2"></div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-4">
                     <div class="glass-panel p-6 rounded-[2rem] min-h-[500px] flex flex-col">
-                        <h4 class="text-[10px] font-black uppercase text-indigo-400 mb-6">Active Order</h4>
-                        <div id="cart" class="scroll-area flex-1 space-y-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h4 class="text-[10px] font-black uppercase text-indigo-400">Active Order</h4>
+                            <button onclick="clearBasket()" class="text-[8px] font-black text-red-500 uppercase">Clear All</button>
+                        </div>
+                        <div id="cart" class="scroll-area flex-1 space-y-3">
                             </div>
                         <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-end">
                             <p class="text-[9px] font-black text-slate-500 uppercase">Grand Total</p>
@@ -71,11 +75,10 @@
 
                 <div class="lg:col-span-4">
                     <div class="glass-panel p-8 rounded-[2.5rem] space-y-6">
-                        <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center">Payment Protocol</p>
                         <div class="grid grid-cols-1 gap-2">
                             <button onclick="setMethod('CASH')" id="btn-CASH" class="pay-btn p-4 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase">Cash Settlement</button>
-                            <button onclick="setMethod('MPESA')" id="btn-MPESA" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">M-Pesa / Mobile</button>
-                            <button onclick="setMethod('CARD')" id="btn-CARD" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">Card Payment</button>
+                            <button onclick="setMethod('MPESA')" id="btn-MPESA" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">M-Pesa</button>
+                            <button onclick="setMethod('CARD')" id="btn-CARD" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">Card</button>
                         </div>
                         <button onclick="finalizeSale()" class="w-full bg-indigo-600 py-6 rounded-2xl text-[12px] font-black text-white shadow-xl shadow-indigo-600/20 uppercase tracking-widest">Execute Sale</button>
                     </div>
@@ -102,10 +105,9 @@
 
         let stock = {}, basket = [], currentMethod = 'CASH';
 
-        // --- AUTH FLOW ---
+        // --- AUTH ---
         document.getElementById('login-btn').onclick = () => auth.signInWithPopup(provider);
         document.getElementById('logout-btn').onclick = () => auth.signOut();
-
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('auth-container').classList.add('hidden');
@@ -118,19 +120,13 @@
             }
         });
 
-        // --- CORE FETCHING LOGIC ---
         function startLiveSync() {
-            // This listener fetches everything under 'inventory'
             db.ref('inventory').on('value', (snapshot) => {
                 stock = snapshot.val() || {};
-                console.log("Data Received:", stock); // Check your console to see if data arrives
                 renderCatalog();
             });
-
-            // Start Scanner
             const scanner = new Html5Qrcode("pos-reader");
             scanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
-                // Look through the stock keys to find the one with the matching code
                 let foundKey = Object.keys(stock).find(k => String(stock[k].code) === String(text));
                 if (foundKey) addToBasket(foundKey);
             }).catch(() => {});
@@ -139,37 +135,40 @@
         window.renderCatalog = (filter = "") => {
             const list = document.getElementById('catalog-list');
             list.innerHTML = '';
-            
             Object.keys(stock).forEach(key => {
                 const item = stock[key];
                 if (item.name.toLowerCase().includes(filter.toLowerCase())) {
                     const div = document.createElement('div');
-                    div.className = "p-4 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition flex justify-between items-center";
+                    div.className = "p-4 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 flex justify-between items-center";
                     div.onclick = () => addToBasket(key);
-                    div.innerHTML = `
-                        <div class="flex flex-col">
-                            <span class="text-[10px] text-white font-black uppercase">${item.name}</span>
-                            <span class="text-[8px] text-slate-500 font-mono">CODE: ${item.code} | QTY: ${item.qty}</span>
-                        </div>
-                        <span class="text-[11px] text-indigo-400 font-black">$${parseFloat(item.price).toFixed(2)}</span>
-                    `;
+                    div.innerHTML = `<div><p class="text-[10px] text-white font-black uppercase">${item.name}</p><p class="text-[8px] text-slate-500 font-mono">STOCK: ${item.qty}</p></div><span class="text-[11px] text-indigo-400 font-black">$${parseFloat(item.price).toFixed(2)}</span>`;
                     list.appendChild(div);
                 }
             });
-
-            if (Object.keys(stock).length === 0) {
-                list.innerHTML = '<p class="text-[9px] text-center text-slate-600 uppercase py-10 font-black tracking-widest">Inventory Empty</p>';
-            }
         };
 
         window.addToBasket = (key) => {
             const item = stock[key];
             const existing = basket.find(b => b.key === key);
-            if (existing) {
-                existing.qty++;
+            if (existing) { existing.qty++; } 
+            else { basket.push({ ...item, key: key, qty: 1 }); }
+            renderCart();
+        };
+
+        // --- UPDATED BASKET CONTROLS ---
+        window.adjustQty = (key, amount) => {
+            const item = basket.find(b => b.key === key);
+            if (!item) return;
+            item.qty += amount;
+            if (item.qty <= 0) {
+                removeItem(key);
             } else {
-                basket.push({ ...item, key: key, qty: 1 });
+                renderCart();
             }
+        };
+
+        window.removeItem = (key) => {
+            basket = basket.filter(b => b.key !== key);
             renderCart();
         };
 
@@ -180,54 +179,41 @@
                 const subtotal = i.qty * i.price;
                 total += subtotal;
                 return `
-                    <div class="p-3 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center">
-                        <span class="text-[10px] text-white uppercase font-black">${i.name} x${i.qty}</span>
-                        <span class="text-[10px] font-mono text-indigo-300">$${subtotal.toFixed(2)}</span>
+                    <div class="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <span class="text-[10px] text-white uppercase font-black">${i.name}</span>
+                            <button onclick="removeItem('${i.key}')" class="text-red-500 text-[10px]">✕</button>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <button onclick="adjustQty('${i.key}', -1)" class="qty-btn">-</button>
+                                <span class="text-[11px] font-mono text-white w-6 text-center">${i.qty}</span>
+                                <button onclick="adjustQty('${i.key}', 1)" class="qty-btn">+</button>
+                            </div>
+                            <span class="text-[11px] font-mono text-indigo-300 font-black">$${subtotal.toFixed(2)}</span>
+                        </div>
                     </div>`;
             }).join('');
             document.getElementById('total').innerText = `$${total.toFixed(2)}`;
-            if(basket.length === 0) cartDiv.innerHTML = '<p class="text-[9px] text-center text-slate-700 uppercase py-20">Basket Empty</p>';
+            if(basket.length === 0) cartDiv.innerHTML = '<p class="text-[9px] text-center text-slate-700 uppercase py-20">No active items</p>';
         };
 
         window.finalizeSale = () => {
             if (!basket.length) return alert("BASKET EMPTY");
-            
             const updates = {};
-            const saleId = Date.now();
-            
-            basket.forEach(item => {
-                // Deduct from the specific item key
-                updates[`inventory/${item.key}/qty`] = stock[item.key].qty - item.qty;
-            });
-
-            updates[`sales/${saleId}`] = {
-                items: basket,
-                total: basket.reduce((a, b) => a + (b.qty * b.price), 0),
-                method: currentMethod,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            };
-
-            db.ref().update(updates)
-                .then(() => {
-                    alert("TRANSACTION COMPLETED");
-                    basket = [];
-                    renderCart();
-                })
-                .catch(err => alert("SYNC ERROR: " + err.message));
+            basket.forEach(item => { updates[`inventory/${item.key}/qty`] = stock[item.key].qty - item.qty; });
+            updates[`sales/${Date.now()}`] = { items: basket, total: basket.reduce((a, b) => a + (b.qty * b.price), 0), method: currentMethod, timestamp: firebase.database.ServerValue.TIMESTAMP };
+            db.ref().update(updates).then(() => { alert("SUCCESS"); basket = []; renderCart(); });
         };
 
         window.setMethod = (m) => {
             currentMethod = m;
-            document.querySelectorAll('.pay-btn').forEach(b => {
-                b.classList.replace('bg-indigo-600', 'bg-white/5');
-                b.classList.replace('text-white', 'text-slate-400');
-            });
+            document.querySelectorAll('.pay-btn').forEach(b => b.classList.replace('bg-indigo-600', 'bg-white/5'));
             document.getElementById('btn-'+m).classList.replace('bg-white/5', 'bg-indigo-600');
-            document.getElementById('btn-'+m).classList.replace('text-slate-400', 'text-white');
         };
 
+        window.clearBasket = () => { if(confirm("Clear order?")) { basket = []; renderCart(); } };
         window.filterCatalog = () => renderCatalog(document.getElementById('catalogSearch').value);
     </script>
 </body>
-</html>
-
+</html>rt
