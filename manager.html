@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wayne Core | Inventory Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --accent: #6366f1; --bg-deep: #020617; --glass: rgba(15, 23, 42, 0.98); }
+        body { background-color: var(--bg-deep); color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .hidden { display: none !important; }
+        .glass-panel { background: var(--glass); backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        input { background: rgba(0,0,0,0.3) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #fff !important; padding: 0.75rem; border-radius: 0.75rem; font-family: 'Fira Code', monospace; font-size: 0.8rem; }
+        input:focus { border-color: var(--accent) !important; outline: none; }
+        .btn-glow { transition: 0.3s; box-shadow: 0 0 20px rgba(99, 102, 241, 0); }
+        .btn-glow:hover { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); transform: translateY(-1px); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="auth-container" class="fixed inset-0 z-[200] bg-slate-950 flex items-center justify-center p-6">
+        <div class="glass-panel p-10 rounded-[2.5rem] max-w-sm w-full text-center border border-indigo-500/30">
+            <h2 class="text-2xl font-black italic uppercase text-white mb-2">Wayne <span class="text-indigo-500">Core</span></h2>
+            <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-8">Admin Access Only</p>
+            <button id="login-btn" class="w-full bg-indigo-600 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest btn-glow">Authorize</button>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <nav class="glass-panel border-b border-white/5 p-4 sticky top-0 z-[100] flex justify-between items-center px-6 lg:px-12">
+            <h2 class="text-lg font-black italic uppercase text-white">Wayne <span class="text-indigo-500 text-sm">Manager</span></h2>
+            <button id="logout-btn" class="text-[8px] font-black text-red-500 uppercase tracking-widest">Terminate Session</button>
+        </nav>
+
+        <main class="p-6 lg:p-12 max-w-6xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-1">
+                    <div class="glass-panel p-8 rounded-[2rem] border border-indigo-500/20">
+                        <h3 class="text-[10px] font-black uppercase text-indigo-400 mb-6 tracking-widest">Product Entry</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[8px] uppercase font-black text-slate-500 block mb-2 px-1">Product Name</label>
+                                <input type="text" id="p-name" placeholder="E.G. NEURAL LINK" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[8px] uppercase font-black text-slate-500 block mb-2 px-1">Price ($)</label>
+                                <input type="number" id="p-price" placeholder="0.00" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[8px] uppercase font-black text-slate-500 block mb-2 px-1">Initial Stock</label>
+                                <input type="number" id="p-qty" placeholder="100" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[8px] uppercase font-black text-slate-500 block mb-2 px-1">Scanner Code (ID)</label>
+                                <input type="text" id="p-code" placeholder="12345678" class="w-full">
+                            </div>
+                            <button onclick="saveItem()" class="w-full bg-indigo-600 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest btn-glow mt-4">Upload to Core</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <div class="glass-panel p-8 rounded-[2rem]">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Live Inventory Database</h3>
+                            <span id="sync-status" class="text-[8px] font-mono text-green-500 uppercase">● Synchronized</span>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="border-b border-white/5 uppercase text-slate-500 font-black">
+                                    <tr>
+                                        <th class="py-4 px-2">Code</th>
+                                        <th class="py-4 px-2">Product</th>
+                                        <th class="py-4 px-2 text-center">Qty</th>
+                                        <th class="py-4 px-2">Price</th>
+                                        <th class="py-4 px-2 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-table-body" class="font-mono text-slate-300">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = { 
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+
+        // --- AUTH LOGIC ---
+        document.getElementById('login-btn').onclick = () => auth.signInWithPopup(provider);
+        document.getElementById('logout-btn').onclick = () => auth.signOut();
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                listenToInventory();
+            } else {
+                authContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        });
+
+        // --- DATABASE OPERATIONS ---
+        window.saveItem = () => {
+            const name = document.getElementById('p-name').value;
+            const price = parseFloat(document.getElementById('p-price').value);
+            const qty = parseInt(document.getElementById('p-qty').value);
+            const code = document.getElementById('p-code').value;
+
+            if (!name || isNaN(price) || isNaN(qty) || !code) return alert("Missing Data");
+
+            // Using push() to create a unique entry, or use code as key
+            const newProduct = { name, price, qty, code };
+            db.ref('inventory').push(newProduct).then(() => {
+                alert("Core Updated");
+                // Clear fields
+                ['p-name', 'p-price', 'p-qty', 'p-code'].forEach(id => document.getElementById(id).value = '');
+            });
+        };
+
+        function listenToInventory() {
+            db.ref('inventory').on('value', (snapshot) => {
+                const data = snapshot.val();
+                const tbody = document.getElementById('inventory-table-body');
+                tbody.innerHTML = '';
+                
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        const item = data[key];
+                        const row = `
+                            <tr class="border-b border-white/5 hover:bg-white/[0.02] transition">
+                                <td class="py-4 px-2 text-indigo-400">${item.code}</td>
+                                <td class="py-4 px-2 font-black text-white uppercase font-sans">${item.name}</td>
+                                <td class="py-4 px-2 text-center ${item.qty < 10 ? 'text-red-500' : ''}">${item.qty}</td>
+                                <td class="py-4 px-2">$${item.price}</td>
+                                <td class="py-4 px-2 text-right">
+                                    <button onclick="deleteItem('${key}')" class="text-red-900 hover:text-red-500 uppercase font-black text-[8px]">Purge</button>
+                                </td>
+                            </tr>
+                        `;
+                        tbody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            });
+        }
+
+        window.deleteItem = (key) => {
+            if (confirm("Permanently delete this product?")) {
+                db.ref(`inventory/${key}`).remove();
+            }
+        };
+    </script>
+</body>
+</html>
