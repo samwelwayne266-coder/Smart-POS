@@ -15,14 +15,20 @@
         body { background-color: var(--bg-deep); color: #f8fafc; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         .hidden { display: none !important; }
         .glass-panel { background: var(--glass); backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        
         #pos-reader { border: none !important; width: 100% !important; border-radius: 1.5rem; overflow: hidden; background: #000; }
-        .laser { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #ef4444; animation: sweep 2s infinite linear; z-index: 51; }
+        
+        .laser { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #ef4444; animation: sweep 2s infinite linear; z-index: 51; transition: background 0.2s; }
+        .laser.success { background: #10b981; box-shadow: 0 0 15px #10b981; }
+        
         @keyframes sweep { 0%, 100% { top: 10% } 50% { top: 90% } }
-        .scroll-area { max-height: 450px; overflow-y: auto; }
+        
+        .scroll-area { max-height: 480px; overflow-y: auto; padding-right: 4px; }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-thumb { background: #312e81; border-radius: 10px; }
-        .qty-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; transition: 0.2s; font-size: 14px; }
-        .qty-btn:hover { background: var(--accent); color: white; }
+
+        .qty-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 900; transition: 0.2s; }
+        .qty-btn:active { transform: scale(0.9); background: var(--accent); }
     </style>
 </head>
 <body class="min-h-screen">
@@ -30,8 +36,7 @@
     <div id="auth-container" class="fixed inset-0 z-[200] bg-slate-950 flex items-center justify-center p-6">
         <div class="glass-panel p-10 rounded-[2.5rem] max-w-sm w-full text-center border border-indigo-500/30 shadow-2xl">
             <h2 class="text-2xl font-black italic uppercase text-white mb-2">Wayne <span class="text-indigo-500">Core</span></h2>
-            <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-8">Access Terminal</p>
-            <button id="login-btn" class="w-full bg-indigo-600 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest">Login with Google</button>
+            <button id="login-btn" class="w-full bg-indigo-600 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest mt-4">Login to Terminal</button>
         </div>
     </div>
 
@@ -39,8 +44,8 @@
         <nav class="glass-panel border-b border-white/5 p-4 sticky top-0 z-[100] flex justify-between items-center px-6 lg:px-12">
             <h2 class="text-lg font-black italic uppercase text-white">Wayne <span class="text-indigo-500 text-sm">POS</span></h2>
             <div class="flex items-center gap-6">
-                <p id="user-display" class="text-[9px] font-mono text-slate-400 uppercase"></p>
-                <button id="logout-btn" class="text-[8px] font-black text-red-500 uppercase tracking-widest">Logout</button>
+                <p id="user-display" class="text-[9px] font-mono text-slate-400 uppercase tracking-tighter"></p>
+                <button id="logout-btn" class="text-[8px] font-black text-red-500 uppercase tracking-widest border border-red-500/20 px-3 py-1 rounded-md">Logout</button>
             </div>
         </nav>
 
@@ -48,12 +53,15 @@
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
                 <div class="lg:col-span-4 space-y-6">
-                    <div class="glass-panel p-4 rounded-[2rem] border border-indigo-500/20 relative">
+                    <div class="glass-panel p-4 rounded-[2rem] border border-indigo-500/20 relative overflow-hidden">
                         <div id="pos-reader"></div>
-                        <div class="laser"></div>
+                        <div id="laser-line" class="laser"></div>
+                        <div id="scan-msg" class="absolute inset-0 flex items-center justify-center bg-indigo-600/20 opacity-0 pointer-events-none transition-opacity duration-300 z-[60]">
+                            <span class="text-white font-black text-[10px] uppercase tracking-[0.3em]">Captured</span>
+                        </div>
                     </div>
                     <div class="glass-panel p-6 rounded-[2rem]">
-                        <input type="text" id="catalogSearch" oninput="filterCatalog()" placeholder="SEARCH INVENTORY..." class="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-[10px] font-mono text-indigo-400 outline-none mb-4">
+                        <input type="text" id="catalogSearch" oninput="filterCatalog()" placeholder="SEARCH STOCK..." class="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-[10px] font-mono text-indigo-400 outline-none mb-4">
                         <div id="catalog-list" class="scroll-area space-y-2"></div>
                     </div>
                 </div>
@@ -61,26 +69,28 @@
                 <div class="lg:col-span-4">
                     <div class="glass-panel p-6 rounded-[2rem] min-h-[500px] flex flex-col">
                         <div class="flex justify-between items-center mb-6">
-                            <h4 class="text-[10px] font-black uppercase text-indigo-400">Active Order</h4>
-                            <button onclick="clearBasket()" class="text-[8px] font-black text-red-500 uppercase">Clear All</button>
+                            <h4 class="text-[10px] font-black uppercase text-indigo-400">Order Items</h4>
+                            <button onclick="clearBasket()" class="text-[8px] font-black text-slate-500 uppercase hover:text-red-500">Clear All</button>
                         </div>
-                        <div id="cart" class="scroll-area flex-1 space-y-3">
-                            </div>
+                        <div id="cart" class="scroll-area flex-1 space-y-3"></div>
                         <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-end">
-                            <p class="text-[9px] font-black text-slate-500 uppercase">Grand Total</p>
-                            <h2 id="total" class="text-4xl font-black text-white font-mono">$0.00</h2>
+                            <div>
+                                <p class="text-[8px] font-black text-slate-500 uppercase">Grand Total</p>
+                                <h2 id="total" class="text-4xl font-black text-white font-mono">$0.00</h2>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-4">
                     <div class="glass-panel p-8 rounded-[2.5rem] space-y-6">
+                        <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center">Protocol</p>
                         <div class="grid grid-cols-1 gap-2">
-                            <button onclick="setMethod('CASH')" id="btn-CASH" class="pay-btn p-4 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase">Cash Settlement</button>
-                            <button onclick="setMethod('MPESA')" id="btn-MPESA" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">M-Pesa</button>
-                            <button onclick="setMethod('CARD')" id="btn-CARD" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">Card</button>
+                            <button onclick="setMethod('CASH')" id="btn-CASH" class="pay-btn p-4 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase transition-all">Cash Payment</button>
+                            <button onclick="setMethod('MPESA')" id="btn-MPESA" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">M-Pesa Transfer</button>
+                            <button onclick="setMethod('CARD')" id="btn-CARD" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">Card/Debit</button>
                         </div>
-                        <button onclick="finalizeSale()" class="w-full bg-indigo-600 py-6 rounded-2xl text-[12px] font-black text-white shadow-xl shadow-indigo-600/20 uppercase tracking-widest">Execute Sale</button>
+                        <button onclick="finalizeSale()" class="w-full bg-indigo-600 py-6 rounded-2xl text-[12px] font-black text-white shadow-xl shadow-indigo-600/20 uppercase tracking-widest btn-glow">Execute Settlement</button>
                     </div>
                 </div>
             </div>
@@ -104,32 +114,55 @@
         const provider = new firebase.auth.GoogleAuthProvider();
 
         let stock = {}, basket = [], currentMethod = 'CASH';
+        let isScannerPaused = false;
 
-        // --- AUTH ---
+        // AUTH
         document.getElementById('login-btn').onclick = () => auth.signInWithPopup(provider);
         document.getElementById('logout-btn').onclick = () => auth.signOut();
+
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('auth-container').classList.add('hidden');
                 document.getElementById('app-container').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `Staff: ${user.displayName}`;
-                startLiveSync();
+                document.getElementById('user-display').innerText = user.displayName;
+                initCore();
             } else {
                 document.getElementById('auth-container').classList.remove('hidden');
                 document.getElementById('app-container').classList.add('hidden');
             }
         });
 
-        function startLiveSync() {
-            db.ref('inventory').on('value', (snapshot) => {
-                stock = snapshot.val() || {};
+        function initCore() {
+            db.ref('inventory').on('value', snap => {
+                stock = snap.val() || {};
                 renderCatalog();
             });
+
             const scanner = new Html5Qrcode("pos-reader");
             scanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+                if (isScannerPaused) return;
+                
                 let foundKey = Object.keys(stock).find(k => String(stock[k].code) === String(text));
-                if (foundKey) addToBasket(foundKey);
+                if (foundKey) {
+                    triggerScanFeedback();
+                    addToBasket(foundKey);
+                }
             }).catch(() => {});
+        }
+
+        function triggerScanFeedback() {
+            isScannerPaused = true;
+            const laser = document.getElementById('laser-line');
+            const msg = document.getElementById('scan-msg');
+            
+            laser.classList.add('success');
+            msg.style.opacity = '1';
+            
+            setTimeout(() => {
+                laser.classList.remove('success');
+                msg.style.opacity = '0';
+                isScannerPaused = false;
+            }, 1500); // 1.5 Second Cooldown
         }
 
         window.renderCatalog = (filter = "") => {
@@ -139,9 +172,10 @@
                 const item = stock[key];
                 if (item.name.toLowerCase().includes(filter.toLowerCase())) {
                     const div = document.createElement('div');
-                    div.className = "p-4 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 flex justify-between items-center";
+                    div.className = "p-3 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:border-indigo-500/50 transition flex justify-between items-center mb-2";
                     div.onclick = () => addToBasket(key);
-                    div.innerHTML = `<div><p class="text-[10px] text-white font-black uppercase">${item.name}</p><p class="text-[8px] text-slate-500 font-mono">STOCK: ${item.qty}</p></div><span class="text-[11px] text-indigo-400 font-black">$${parseFloat(item.price).toFixed(2)}</span>`;
+                    div.innerHTML = `<div><p class="text-[10px] text-white font-black uppercase">${item.name}</p><p class="text-[7px] text-slate-500 font-mono">${item.code}</p></div>
+                                     <span class="text-[10px] text-indigo-400 font-black">$${parseFloat(item.price).toFixed(2)}</span>`;
                     list.appendChild(div);
                 }
             });
@@ -150,21 +184,17 @@
         window.addToBasket = (key) => {
             const item = stock[key];
             const existing = basket.find(b => b.key === key);
-            if (existing) { existing.qty++; } 
-            else { basket.push({ ...item, key: key, qty: 1 }); }
+            if (existing) existing.qty++;
+            else basket.push({ ...item, key, qty: 1 });
             renderCart();
         };
 
-        // --- UPDATED BASKET CONTROLS ---
-        window.adjustQty = (key, amount) => {
+        window.adjustQty = (key, delta) => {
             const item = basket.find(b => b.key === key);
             if (!item) return;
-            item.qty += amount;
-            if (item.qty <= 0) {
-                removeItem(key);
-            } else {
-                renderCart();
-            }
+            item.qty += delta;
+            if (item.qty <= 0) window.removeItem(key);
+            else renderCart();
         };
 
         window.removeItem = (key) => {
@@ -179,31 +209,29 @@
                 const subtotal = i.qty * i.price;
                 total += subtotal;
                 return `
-                    <div class="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-3">
-                        <div class="flex justify-between items-start">
-                            <span class="text-[10px] text-white uppercase font-black">${i.name}</span>
-                            <button onclick="removeItem('${i.key}')" class="text-red-500 text-[10px]">✕</button>
-                        </div>
-                        <div class="flex justify-between items-center">
+                    <div class="p-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-4">
+                        <div class="flex-1">
+                            <p class="text-[10px] text-white font-black uppercase mb-2">${i.name}</p>
                             <div class="flex items-center gap-2">
-                                <button onclick="adjustQty('${i.key}', -1)" class="qty-btn">-</button>
-                                <span class="text-[11px] font-mono text-white w-6 text-center">${i.qty}</span>
-                                <button onclick="adjustQty('${i.key}', 1)" class="qty-btn">+</button>
+                                <button onclick="adjustQty('${i.key}', -1)" class="qty-btn text-slate-400 hover:text-white">-</button>
+                                <span class="text-[11px] font-mono text-indigo-400 w-6 text-center">${i.qty}</span>
+                                <button onclick="adjustQty('${i.key}', 1)" class="qty-btn text-slate-400 hover:text-white">+</button>
+                                <button onclick="removeItem('${i.key}')" class="ml-4 text-[8px] font-black text-red-950 hover:text-red-500 uppercase tracking-widest">Delete</button>
                             </div>
-                            <span class="text-[11px] font-mono text-indigo-300 font-black">$${subtotal.toFixed(2)}</span>
                         </div>
+                        <span class="text-[11px] font-black text-white">$${subtotal.toFixed(2)}</span>
                     </div>`;
             }).join('');
             document.getElementById('total').innerText = `$${total.toFixed(2)}`;
-            if(basket.length === 0) cartDiv.innerHTML = '<p class="text-[9px] text-center text-slate-700 uppercase py-20">No active items</p>';
+            if(!basket.length) cartDiv.innerHTML = '<div class="py-20 text-center opacity-20 text-[9px] uppercase font-black">Waiting for Data...</div>';
         };
 
         window.finalizeSale = () => {
-            if (!basket.length) return alert("BASKET EMPTY");
+            if (!basket.length) return;
             const updates = {};
             basket.forEach(item => { updates[`inventory/${item.key}/qty`] = stock[item.key].qty - item.qty; });
             updates[`sales/${Date.now()}`] = { items: basket, total: basket.reduce((a, b) => a + (b.qty * b.price), 0), method: currentMethod, timestamp: firebase.database.ServerValue.TIMESTAMP };
-            db.ref().update(updates).then(() => { alert("SUCCESS"); basket = []; renderCart(); });
+            db.ref().update(updates).then(() => { basket = []; renderCart(); alert("SUCCESS: TRANSACTION RECORDED"); });
         };
 
         window.setMethod = (m) => {
@@ -211,9 +239,9 @@
             document.querySelectorAll('.pay-btn').forEach(b => b.classList.replace('bg-indigo-600', 'bg-white/5'));
             document.getElementById('btn-'+m).classList.replace('bg-white/5', 'bg-indigo-600');
         };
-
-        window.clearBasket = () => { if(confirm("Clear order?")) { basket = []; renderCart(); } };
+        
+        window.clearBasket = () => { if(confirm("Clear current order?")) { basket = []; renderCart(); } };
         window.filterCatalog = () => renderCatalog(document.getElementById('catalogSearch').value);
     </script>
 </body>
-</html>rt
+</html>
