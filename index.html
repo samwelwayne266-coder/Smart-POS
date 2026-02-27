@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud POS - Debug Mode</title>
+    <title>Cloud POS Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="status-bar">System Status: <span id="sys-status">Initializing...</span></div>
+    <div id="status-bar">System Status: <span id="sys-status">Checking...</span></div>
 
-    <div id="auth-container">
-        <h2>POS Terminal</h2>
-        <p>Login required to open register</p>
-        <button id="login-btn">Sign in with Google</button>
-        <div id="debug-log" style="color: red; margin-top: 20px; font-size: 12px; font-family: monospace;"></div>
+    <div id="auth-container" class="hidden">
+        <div class="login-card">
+            <h2>POS Terminal</h2>
+            <p>Authorized Personnel Only</p>
+            <button id="login-btn">Sign in with Google</button>
+            <div id="debug-log"></div>
+        </div>
     </div>
 
     <div id="app-container" class="hidden">
@@ -24,16 +26,27 @@
 
         <main>
             <section id="menu">
-                <div class="card" onclick="addToCart('Coffee', 4.50)">☕ Coffee $4.50</div>
-                <div class="card" onclick="addToCart('Burger', 12.00)">🍔 Burger $12.00</div>
-                <div class="card" onclick="addToCart('Soda', 2.50)">🥤 Soda $2.50</div>
+                <h3>Products</h3>
+                <div class="grid">
+                    <div class="card" onclick="addToCart('Coffee', 4.50)">☕ Coffee<br>$4.50</div>
+                    <div class="card" onclick="addToCart('Burger', 12.00)">🍔 Burger<br>$12.00</div>
+                    <div class="card" onclick="addToCart('Soda', 2.50)">🥤 Soda<br>$2.50</div>
+                    <div class="card" onclick="addToCart('Cake', 6.00)">🍰 Cake<br>$6.00</div>
+                </div>
             </section>
 
-            <section id="cart-panel">
-                <h3>Current Order</h3>
-                <div id="cart-items"></div>
-                <div id="total-row">Total: $<span id="total-val">0.00</span></div>
-                <button id="checkout-btn">Submit Order</button>
+            <section id="sidebar">
+                <div id="cart-panel">
+                    <h3>Current Order</h3>
+                    <div id="cart-items"></div>
+                    <div id="total-row">Total: $<span id="total-val">0.00</span></div>
+                    <button id="checkout-btn">Complete Transaction</button>
+                </div>
+
+                <div id="history-panel">
+                    <h3>Recent Sales</h3>
+                    <div id="sales-feed">Waiting for sync...</div>
+                </div>
             </section>
         </main>
     </div>
