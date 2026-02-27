@@ -4,132 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wayne Core | Smart POS</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --accent: #6366f1; 
-            --bg-deep: #020617; 
-            --glass: rgba(15, 23, 42, 0.98); 
-        }
-
-        body { 
-            background-color: var(--bg-deep); 
-            color: #f8fafc; 
-            font-family: 'Inter', sans-serif; 
-            margin: 0; padding: 0;
-            overflow-x: hidden;
-        }
-
+        :root { --accent: #6366f1; --bg-deep: #020617; --glass: rgba(15, 23, 42, 0.98); }
+        body { background-color: var(--bg-deep); color: #f8fafc; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         .hidden { display: none !important; }
         .glass-panel { background: var(--glass); backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.08); }
-
-        /* SCANNER UI */
         #pos-reader { border: none !important; width: 100% !important; border-radius: 1.5rem; overflow: hidden; background: #000; }
-        .scanner-container { position: relative; border-radius: 2rem; border: 1px solid rgba(99, 102, 241, 0.3); overflow: hidden; }
-        
-        .brackets { 
-            position: absolute; top: 50%; left: 50%; 
-            transform: translate(-50%, -50%); width: 70%; height: 40%; 
-            z-index: 50; pointer-events: none; 
-        }
-        .brk { position: absolute; width: 25px; height: 25px; border: 3px solid #fff; filter: drop-shadow(0 0 8px var(--accent)); }
-        .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
-        .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 8px 0 0; }
-        .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
-        .br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 8px 0; }
-        
         .laser { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #ef4444; animation: sweep 2s infinite linear; z-index: 51; }
         @keyframes sweep { 0%, 100% { top: 10% } 50% { top: 90% } }
-
-        .compact-btn {
-            padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-size: 0.7rem; font-weight: 900; 
-            text-transform: uppercase; letter-spacing: 0.15em; transition: 0.2s; cursor: pointer;
-        }
-        .compact-btn:active { transform: scale(0.95); }
-
-        .scroll-area { max-height: 400px; overflow-y: auto; }
+        .scroll-area { max-height: 450px; overflow-y: auto; }
         ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #312e81; border-radius: 10px; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="auth-container" class="fixed inset-0 z-[200] bg-slate-950 flex items-center justify-center p-6">
-        <div class="glass-panel p-10 rounded-[2.5rem] max-w-sm w-full text-center border border-indigo-500/30 shadow-[0_0_50px_rgba(99,102,241,0.2)]">
+        <div class="glass-panel p-10 rounded-[2.5rem] max-w-sm w-full text-center border border-indigo-500/30 shadow-2xl">
             <h2 class="text-2xl font-black italic uppercase text-white mb-2">Wayne <span class="text-indigo-500">Core</span></h2>
-            <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-8">Access Restricted</p>
-            <button id="login-btn" class="compact-btn w-full bg-indigo-600 py-4 text-white shadow-lg shadow-indigo-500/20">Authorize via Google</button>
-            <div id="auth-error" class="text-red-500 text-[8px] mt-4 font-black uppercase"></div>
+            <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-8">Terminal Restricted</p>
+            <button id="login-btn" class="w-full bg-indigo-600 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest">Login with Google</button>
         </div>
     </div>
 
     <div id="app-container" class="hidden">
         <nav class="glass-panel border-b border-white/5 p-4 sticky top-0 z-[100] flex justify-between items-center px-6 lg:px-12">
-            <div class="flex items-center gap-4">
-                <h2 class="text-lg font-black italic uppercase text-white">Wayne <span class="text-indigo-500 text-sm">OS</span></h2>
-                <div class="h-4 w-[1px] bg-white/10"></div>
+            <h2 class="text-lg font-black italic uppercase text-white">Wayne <span class="text-indigo-500 text-sm">POS</span></h2>
+            <div class="flex items-center gap-6">
                 <p id="user-display" class="text-[9px] font-mono text-slate-400 uppercase"></p>
+                <button id="logout-btn" class="text-[8px] font-black text-red-500 uppercase tracking-widest">Logout</button>
             </div>
-            <button id="logout-btn" class="text-[8px] font-black text-slate-500 hover:text-red-500 uppercase tracking-widest transition-colors">Terminate Session</button>
         </nav>
 
         <main class="p-5 lg:p-12 max-w-7xl mx-auto">
-            <header class="mb-10">
-                <h1 class="text-5xl md:text-7xl font-black uppercase italic tracking-tighter">SMART <span class="text-indigo-500 text-6xl">POS</span></h1>
-            </header>
-
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
                 <div class="lg:col-span-4 space-y-6">
-                    <div class="glass-panel p-4 scanner-container border border-indigo-500/20">
-                        <p class="text-[8px] font-black uppercase text-indigo-400 mb-3 px-2 tracking-widest">Quantum Reader</p>
-                        <div class="relative">
-                            <div id="pos-reader"></div>
-                            <div class="brackets">
-                                <div class="brk tl"></div><div class="brk tr"></div>
-                                <div class="brk bl"></div><div class="brk br"></div>
-                                <div class="laser"></div>
-                            </div>
-                        </div>
+                    <div class="glass-panel p-4 rounded-[2rem] border border-indigo-500/20 relative">
+                        <div id="pos-reader"></div>
+                        <div class="laser"></div>
                     </div>
-
                     <div class="glass-panel p-6 rounded-[2rem]">
-                        <input type="text" id="catalogSearch" oninput="filterCatalog()" placeholder="SEARCH CATALOG..." class="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-[10px] font-mono text-indigo-400 outline-none mb-4">
-                        <div id="catalog-list" class="scroll-area space-y-2"></div>
+                        <input type="text" id="catalogSearch" oninput="filterCatalog()" placeholder="SEARCH INVENTORY..." class="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-[10px] font-mono text-indigo-400 outline-none mb-4">
+                        <div id="catalog-list" class="scroll-area space-y-2">
+                            </div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-4">
                     <div class="glass-panel p-6 rounded-[2rem] min-h-[500px] flex flex-col">
-                        <div class="flex justify-between items-center mb-6">
-                            <h4 class="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Active Order</h4>
-                            <button onclick="clearBasket()" class="text-[8px] font-black text-red-500 uppercase">Clear</button>
-                        </div>
-                        <div id="cart" class="scroll-area flex-1 space-y-2"></div>
-                        <div class="mt-4 pt-4 border-t border-white/5">
-                            <div class="flex justify-between items-end p-2">
-                                <p class="text-[9px] font-black text-slate-500 uppercase">Total</p>
-                                <h2 id="total" class="text-4xl font-black text-white font-mono">$0.00</h2>
+                        <h4 class="text-[10px] font-black uppercase text-indigo-400 mb-6">Active Order</h4>
+                        <div id="cart" class="scroll-area flex-1 space-y-2">
                             </div>
+                        <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-end">
+                            <p class="text-[9px] font-black text-slate-500 uppercase">Grand Total</p>
+                            <h2 id="total" class="text-4xl font-black text-white font-mono">$0.00</h2>
                         </div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-4">
                     <div class="glass-panel p-8 rounded-[2.5rem] space-y-6">
-                        <p class="text-[8px] font-black text-center text-slate-500 uppercase tracking-widest">Settlement Protocol</p>
+                        <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center">Payment Protocol</p>
                         <div class="grid grid-cols-1 gap-2">
-                            <button onclick="setMethod('CASH')" id="btn-CASH" class="pay-btn compact-btn bg-indigo-600 text-white">Cash</button>
-                            <button onclick="setMethod('CARD')" id="btn-CARD" class="pay-btn compact-btn bg-white/5 text-slate-400">Card</button>
-                            <button onclick="setMethod('MPESA')" id="btn-MPESA" class="pay-btn compact-btn bg-white/5 text-slate-400">M-Pesa</button>
+                            <button onclick="setMethod('CASH')" id="btn-CASH" class="pay-btn p-4 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase">Cash Settlement</button>
+                            <button onclick="setMethod('MPESA')" id="btn-MPESA" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">M-Pesa / Mobile</button>
+                            <button onclick="setMethod('CARD')" id="btn-CARD" class="pay-btn p-4 rounded-xl bg-white/5 text-slate-400 font-black text-[10px] uppercase">Card Payment</button>
                         </div>
-                        <button onclick="finalizeSale()" class="compact-btn w-full bg-indigo-600 py-6 text-[12px] text-white shadow-xl shadow-indigo-600/20">Execute Transaction</button>
+                        <button onclick="finalizeSale()" class="w-full bg-indigo-600 py-6 rounded-2xl text-[12px] font-black text-white shadow-xl shadow-indigo-600/20 uppercase tracking-widest">Execute Sale</button>
                     </div>
                 </div>
             </div>
@@ -137,129 +85,148 @@
     </div>
 
     <script type="module">
-        // 1. CONFIG (Add your keys)
-  const firebaseConfig = {
-    apiKey: "AIzaSyAN7fPizBFDc4Jb1Nlj4Z6Q10MiABc4or0",
-    authDomain: "cloud-pos-b284f.firebaseapp.com",
-    projectId: "cloud-pos-b284f",
-    storageBucket: "cloud-pos-b284f.firebasestorage.app",
-    messagingSenderId: "736972898234",
-    appId: "1:736972898234:web:e548e9e7a95a34c283a783",
-    measurementId: "G-TVX352VNGT"
-  };
+        const firebaseConfig = { 
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_ID",
+            appId: "YOUR_APP_ID"
+        };
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // UI References
-        const authContainer = document.getElementById('auth-container');
-        const appContainer = document.getElementById('app-container');
-        const userDisplay = document.getElementById('user-display');
+        let stock = {}, basket = [], currentMethod = 'CASH';
 
-        // --- 2. AUTHENTICATION ---
-        document.getElementById('login-btn').onclick = () => {
-            auth.signInWithPopup(provider).catch(e => {
-                document.getElementById('auth-error').innerText = e.message;
-            });
-        };
-
+        // --- AUTH FLOW ---
+        document.getElementById('login-btn').onclick = () => auth.signInWithPopup(provider);
         document.getElementById('logout-btn').onclick = () => auth.signOut();
 
         auth.onAuthStateChanged(user => {
             if (user) {
-                authContainer.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                userDisplay.innerText = `Operator: ${user.displayName}`;
-                startScanner();
-                syncInventory();
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                document.getElementById('user-display').innerText = `Staff: ${user.displayName}`;
+                startLiveSync();
             } else {
-                authContainer.classList.remove('hidden');
-                appContainer.classList.add('hidden');
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('app-container').classList.add('hidden');
             }
         });
 
-        // --- 3. LOGIC ---
-        let stock = {}, basket = [], currentMethod = 'CASH';
-
-        function syncInventory() {
-            db.ref('inventory').on('value', snap => {
-                stock = snap.val() || {};
+        // --- CORE FETCHING LOGIC ---
+        function startLiveSync() {
+            // This listener fetches everything under 'inventory'
+            db.ref('inventory').on('value', (snapshot) => {
+                stock = snapshot.val() || {};
+                console.log("Data Received:", stock); // Check your console to see if data arrives
                 renderCatalog();
             });
+
+            // Start Scanner
+            const scanner = new Html5Qrcode("pos-reader");
+            scanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+                // Look through the stock keys to find the one with the matching code
+                let foundKey = Object.keys(stock).find(k => String(stock[k].code) === String(text));
+                if (foundKey) addToBasket(foundKey);
+            }).catch(() => {});
         }
+
+        window.renderCatalog = (filter = "") => {
+            const list = document.getElementById('catalog-list');
+            list.innerHTML = '';
+            
+            Object.keys(stock).forEach(key => {
+                const item = stock[key];
+                if (item.name.toLowerCase().includes(filter.toLowerCase())) {
+                    const div = document.createElement('div');
+                    div.className = "p-4 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition flex justify-between items-center";
+                    div.onclick = () => addToBasket(key);
+                    div.innerHTML = `
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-white font-black uppercase">${item.name}</span>
+                            <span class="text-[8px] text-slate-500 font-mono">CODE: ${item.code} | QTY: ${item.qty}</span>
+                        </div>
+                        <span class="text-[11px] text-indigo-400 font-black">$${parseFloat(item.price).toFixed(2)}</span>
+                    `;
+                    list.appendChild(div);
+                }
+            });
+
+            if (Object.keys(stock).length === 0) {
+                list.innerHTML = '<p class="text-[9px] text-center text-slate-600 uppercase py-10 font-black tracking-widest">Inventory Empty</p>';
+            }
+        };
 
         window.addToBasket = (key) => {
             const item = stock[key];
-            const inCart = basket.find(b => b.key === key);
-            if (inCart) inCart.qty++;
-            else basket.push({ ...item, key, qty: 1 });
+            const existing = basket.find(b => b.key === key);
+            if (existing) {
+                existing.qty++;
+            } else {
+                basket.push({ ...item, key: key, qty: 1 });
+            }
             renderCart();
         };
 
         window.renderCart = () => {
             let total = 0;
-            const container = document.getElementById('cart');
-            container.innerHTML = basket.map((i, idx) => {
-                total += (i.qty * i.price);
-                return `<div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5">
-                    <div><p class="text-[10px] font-black text-white uppercase">${i.name}</p>
-                    <p class="text-[8px] text-indigo-400 font-mono">QTY: ${i.qty}</p></div>
-                    <span class="text-[10px] font-black">$${(i.qty * i.price).toFixed(2)}</span>
-                </div>`;
+            const cartDiv = document.getElementById('cart');
+            cartDiv.innerHTML = basket.map(i => {
+                const subtotal = i.qty * i.price;
+                total += subtotal;
+                return `
+                    <div class="p-3 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center">
+                        <span class="text-[10px] text-white uppercase font-black">${i.name} x${i.qty}</span>
+                        <span class="text-[10px] font-mono text-indigo-300">$${subtotal.toFixed(2)}</span>
+                    </div>`;
             }).join('');
             document.getElementById('total').innerText = `$${total.toFixed(2)}`;
+            if(basket.length === 0) cartDiv.innerHTML = '<p class="text-[9px] text-center text-slate-700 uppercase py-20">Basket Empty</p>';
         };
 
         window.finalizeSale = () => {
             if (!basket.length) return alert("BASKET EMPTY");
+            
             const updates = {};
             const saleId = Date.now();
+            
             basket.forEach(item => {
+                // Deduct from the specific item key
                 updates[`inventory/${item.key}/qty`] = stock[item.key].qty - item.qty;
             });
-            updates[`sales/${saleId}`] = { 
-                items: basket, 
-                method: currentMethod, 
-                timestamp: firebase.database.ServerValue.TIMESTAMP 
+
+            updates[`sales/${saleId}`] = {
+                items: basket,
+                total: basket.reduce((a, b) => a + (b.qty * b.price), 0),
+                method: currentMethod,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             };
-            db.ref().update(updates).then(() => {
-                alert("SALE RECORDED");
-                basket = [];
-                renderCart();
-            });
+
+            db.ref().update(updates)
+                .then(() => {
+                    alert("TRANSACTION COMPLETED");
+                    basket = [];
+                    renderCart();
+                })
+                .catch(err => alert("SYNC ERROR: " + err.message));
         };
 
-        // UI HELPERS
         window.setMethod = (m) => {
             currentMethod = m;
-            document.querySelectorAll('.pay-btn').forEach(b => b.classList.replace('bg-indigo-600', 'bg-white/5'));
-            document.getElementById('btn-'+m).classList.replace('bg-white/5', 'bg-indigo-600');
-        };
-
-        function startScanner() {
-            const scanner = new Html5Qrcode("pos-reader");
-            scanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (text) => {
-                let key = Object.keys(stock).find(k => stock[k].code === text);
-                if (key) addToBasket(key);
-            }).catch(() => {});
-        }
-
-        window.filterCatalog = () => {
-            const val = document.getElementById('catalogSearch').value.toLowerCase();
-            const list = document.getElementById('catalog-list');
-            list.innerHTML = '';
-            Object.keys(stock).forEach(k => {
-                if (stock[k].name.toLowerCase().includes(val)) {
-                    const div = document.createElement('div');
-                    div.className = "p-3 bg-white/5 rounded-xl border border-white/5 cursor-pointer mb-2";
-                    div.onclick = () => addToBasket(k);
-                    div.innerHTML = `<span class="text-[10px] text-white font-black uppercase">${stock[k].name}</span>`;
-                    list.appendChild(div);
-                }
+            document.querySelectorAll('.pay-btn').forEach(b => {
+                b.classList.replace('bg-indigo-600', 'bg-white/5');
+                b.classList.replace('text-white', 'text-slate-400');
             });
+            document.getElementById('btn-'+m).classList.replace('bg-white/5', 'bg-indigo-600');
+            document.getElementById('btn-'+m).classList.replace('text-slate-400', 'text-white');
         };
+
+        window.filterCatalog = () => renderCatalog(document.getElementById('catalogSearch').value);
     </script>
 </body>
 </html>
