@@ -231,7 +231,6 @@
             const updates = {};
             basket.forEach(item => { updates[`inventory/${item.key}/qty`] = stock[item.key].qty - item.qty; });
             updates[`sales/${Date.now()}`] = { items: basket, total: basket.reduce((a, b) => a + (b.qty * b.price), 0), method: currentMethod, timestamp: firebase.database.ServerValue.TIMESTAMP };
-            db.ref().update(updates).then(() => { basket = []; renderCart(); alert("SUCCESS: TRANSACTION RECORDED"); });
         };
 
         window.setMethod = (m) => {
